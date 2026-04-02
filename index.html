@@ -6,6 +6,7 @@
     <title>Prolog.io - System Release Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* Custom scrollbar to match the slick design */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -156,6 +157,52 @@
         </div>
     </div>
 
+    <!-- Export Change Log Modal -->
+    <div id="export-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+        <div class="bg-white w-full max-w-4xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh]">
+            <div class="p-6 border-b border-slate-800 bg-[#0F172A] text-white flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg tracking-tight">Export Change Log</h3>
+                    <p class="text-slate-500 text-[10px] uppercase tracking-wider">Generate deployment guidelines</p>
+                </div>
+                <button onclick="closeModal('export-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50 hide-scroll flex flex-col gap-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">From Version</label>
+                        <select id="export-from-version" onchange="generateExportPreview()" class="w-full px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:border-indigo-500 font-mono text-sm">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">To Version</label>
+                        <select id="export-to-version" onchange="generateExportPreview()" class="w-full px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:border-indigo-500 font-mono text-sm">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-white border border-slate-200 shadow-sm p-6 overflow-y-auto min-h-[300px]" id="export-preview-container">
+                    <div class="text-center text-slate-400 text-sm mt-10">Select versions to generate preview</div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-white flex gap-3 justify-end items-center">
+                <button onclick="downloadExportText()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 shadow-sm uppercase">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> Guideline.txt
+                </button>
+                <button onclick="downloadExportPDF()" class="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all shadow-sm uppercase">
+                    <i data-lucide="file-type-2" class="w-4 h-4"></i> Download PDF
+                </button>
+                <button onclick="copyExportText()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm uppercase">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copy Text
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Constants
         const LOG_TYPES = {
@@ -224,6 +271,7 @@
             document.getElementById(id).classList.remove('hidden');
             if(id === 'log-modal') renderLogTypeSelector();
             if(id === 'release-modal') setupReleaseModal();
+            if(id === 'export-modal') setupExportModal();
         }
 
         function closeModal(id) {
@@ -539,6 +587,9 @@
                             <p class="text-slate-500 text-sm max-w-2xl">${project.description}</p>
                         </div>
                         <div class="flex gap-2">
+                            <button onclick="openModal('export-modal')" class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold transition-all shadow-sm">
+                                <i data-lucide="download" class="w-4 h-4"></i> Export Change Log
+                            </button>
                             <button onclick="openModal('log-modal')" class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold transition-all shadow-sm">
                                 <i data-lucide="plus" class="w-4 h-4"></i> Commit Log
                             </button>
@@ -925,6 +976,218 @@
             closeModal('release-modal');
             saveState();
         });
+
+        // Export Logic
+        function setupExportModal() {
+            const project = projects.find(p => p.id === activeProjectId);
+            if (!project) return;
+            
+            if (project.releases.length === 0) {
+                document.getElementById('export-preview-container').innerHTML = '<div class="text-center text-slate-400 mt-10">No releases available to export.</div>';
+                document.getElementById('export-from-version').innerHTML = '';
+                document.getElementById('export-to-version').innerHTML = '';
+                return;
+            }
+            
+            const sortedReleases = [...project.releases].sort((a,b) => a.releasedAt.localeCompare(b.releasedAt));
+            const versions = [project.version, ...sortedReleases.map(r => r.version)];
+            
+            let optionsHtml = '';
+            versions.forEach(v => {
+                optionsHtml += `<option value="${v}">v${v}</option>`;
+            });
+
+            document.getElementById('export-from-version').innerHTML = optionsHtml;
+            document.getElementById('export-to-version').innerHTML = optionsHtml;
+            
+            document.getElementById('export-from-version').value = versions[0];
+            document.getElementById('export-to-version').value = versions[versions.length - 1];
+
+            generateExportPreview();
+        }
+
+        function generateExportPreview() {
+            const project = projects.find(p => p.id === activeProjectId);
+            if (!project) return;
+            
+            const fromVer = document.getElementById('export-from-version').value;
+            const toVer = document.getElementById('export-to-version').value;
+            
+            if (!fromVer || !toVer) return;
+
+            const sortedReleases = [...project.releases].sort((a,b) => a.releasedAt.localeCompare(b.releasedAt));
+            const allVersions = [project.version, ...sortedReleases.map(r => r.version)];
+            const fromIdx = allVersions.findIndex(v => v === fromVer);
+            const toIdx = allVersions.findIndex(v => v === toVer);
+            
+            if (fromIdx > toIdx) {
+                document.getElementById('export-preview-container').innerHTML = `<div class="text-center text-rose-500 mt-10">Invalid version range. 'From Version' must be older or equal to 'To Version'.</div>`;
+                return;
+            }
+
+            if (fromIdx === toIdx) {
+                document.getElementById('export-preview-container').innerHTML = `<div class="text-center text-slate-400 mt-10">Same version selected. No upgrade steps required.</div>`;
+                window.lastExportText = '';
+                return;
+            }
+
+            // Exclude fromVer's own release, include all up to toVer
+            const targetReleases = sortedReleases.slice(fromIdx, toIdx);
+
+            // 1. Full Merged Change Log
+            let mergedLogsHtml = '';
+            let mergedLogsText = '';
+            let allLogs = [];
+            targetReleases.forEach(rel => {
+                rel.logs.forEach(logId => {
+                    const log = project.logs.find(l => l.id === logId);
+                    if(log) allLogs.push(log);
+                });
+            });
+
+            Object.entries(LOG_TYPES).forEach(([key, conf]) => {
+                const logsOfType = allLogs.filter(l => l.type === key);
+                if (logsOfType.length > 0) {
+                    mergedLogsHtml += `<div class="mb-5">
+                        <span class="text-[10px] font-bold ${conf.color} uppercase tracking-widest mb-2 shadow-sm px-2 py-1 ${conf.bgColor} inline-block rounded">${conf.label}</span>
+                        <ul class="list-disc list-outside ml-6 text-sm text-slate-700 space-y-1 mt-1">
+                            ${logsOfType.map(l => `<li>${l.description}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                    
+                    mergedLogsText += `\n[${conf.label.toUpperCase()}]\n` + logsOfType.map(l => `- ${l.description}`).join('\n') + '\n';
+                }
+            });
+
+            // 2. Version by Version Upgrade Protocol Steps
+            let stepsHtml = '';
+            let stepsText = '';
+            
+            const fileDedupeMap = {};
+            targetReleases.forEach(rel => {
+                if(!rel.guidelines) return;
+                rel.guidelines.forEach((step) => {
+                    if (step.type === 'REPLACE_FILE' || step.type === 'ADD_FILE') {
+                        const pathKey = (step.toPath || '').trim().toLowerCase();
+                        fileDedupeMap[pathKey] = rel.version;
+                    }
+                });
+            });
+
+            targetReleases.forEach(rel => {
+                if (!rel.guidelines || rel.guidelines.length === 0) return;
+                
+                let relStepsHtml = '';
+                let relStepsText = '';
+                let stepCounter = 1;
+                
+                rel.guidelines.forEach((step) => {
+                    if (step.type === 'REPLACE_FILE' || step.type === 'ADD_FILE') {
+                        const pathKey = (step.toPath || '').trim().toLowerCase();
+                        if (fileDedupeMap[pathKey] !== rel.version) {
+                            return;
+                        }
+                    }
+                    
+                    if (typeof step === 'string') {
+                        relStepsHtml += `<div class="text-sm font-mono bg-slate-50 p-2 mb-2 border border-slate-100">${stepCounter}. ${step}</div>`;
+                        relStepsText += `${stepCounter}. ${step}\n`;
+                    } else if (step.type === 'PLAIN_TEXT') {
+                        relStepsHtml += `<div class="text-sm bg-slate-50 p-2 mb-2 border border-slate-100">${stepCounter}. ${step.content}</div>`;
+                        relStepsText += `${stepCounter}. ${step.content}\n`;
+                    } else if (step.type === 'ADD_FILE') {
+                        let txt = `Add ${step.fromPath || 'system generated'} file into ${step.toPath} path`;
+                        relStepsHtml += `<div class="text-sm bg-slate-50 p-2 mb-2 border border-slate-100">${stepCounter}. ${txt}</div>`;
+                        relStepsText += `${stepCounter}. ${txt}\n`;
+                    } else if (step.type === 'REPLACE_FILE') {
+                        let txt = `Replace <b>${step.toPath}</b> file with ${step.fromPath || 'system generated'} file`;
+                        relStepsHtml += `<div class="text-sm bg-slate-50 p-2 mb-2 border border-slate-100">${stepCounter}. ${txt}</div>`;
+                        relStepsText += `${stepCounter}. Replace ${step.toPath} file with ${step.fromPath || 'system generated'} file\n`;
+                    } else if (step.type === 'REPLACE_CODE') {
+                        relStepsHtml += `<div class="text-sm bg-slate-50 p-2 mb-2 border border-slate-100">
+                            <div>${stepCounter}. Add this code at <span class="font-bold text-indigo-600">${step.targetLocation}</span> on <code class="font-bold">${step.onPath}</code> file</div>
+                            <pre class="mt-2 bg-[#0F172A] text-slate-300 p-2 text-[11px] overflow-x-auto whitespace-pre-wrap leading-relaxed rounded border border-slate-800">${step.code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+                        </div>`;
+                        relStepsText += `${stepCounter}. Add code at "${step.targetLocation}" on ${step.onPath} file:\n${step.code}\n\n`;
+                    }
+                    stepCounter++;
+                });
+
+                if (relStepsHtml) {
+                    stepsHtml += `
+                    <div class="mb-6 bg-slate-50/50 border border-slate-200 p-4">
+                        <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-3 flex items-center gap-2">
+                            <i data-lucide="box" class="w-4 h-4 text-indigo-500"></i> Upgrade Protocol for v${rel.version}
+                        </h4>
+                        ${relStepsHtml}
+                    </div>`;
+                    stepsText += `\n--- Upgrade Protocol for v${rel.version} ---\n\n${relStepsText}`;
+                }
+            });
+
+            const finalHtml = `
+                <div id="export-pdf-content" class="bg-white" style="padding: 20px; font-family: sans-serif;">
+                    <div style="border-bottom: 2px solid #0F172A; padding-bottom: 10px; margin-bottom: 20px;">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-1">Change Log & Upgrade Guideline</h2>
+                        <p class="text-slate-500 font-mono text-sm">Version ${fromVer} → ${toVer}</p>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+                            <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i> Merged Change Log
+                        </h3>
+                        ${mergedLogsHtml || '<p class="text-sm text-slate-500 italic">No change logs available for these versions.</p>'}
+                    </div>
+
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+                            <i data-lucide="list-ordered" class="w-5 h-5 text-indigo-600"></i> Upgrade Protocol Steps
+                        </h3>
+                        ${stepsHtml || '<p class="text-sm text-slate-500 italic">No upgrade steps available for these versions.</p>'}
+                    </div>
+                </div>
+            `;
+            
+            const finalText = `=====================================\nCHANGE LOG & UPGRADE GUIDELINE\nVersion ${fromVer} to ${toVer}\n=====================================\n\nMERGED CHANGE LOG:\n-------------------------------------\n${mergedLogsText || 'No change logs available.\n'}\nUPGRADE PROTOCOL STEPS:\n-------------------------------------${stepsText || '\nNo upgrade steps available.\n'}`;
+
+            document.getElementById('export-preview-container').innerHTML = finalHtml;
+            lucide.createIcons({
+                root: document.getElementById('export-preview-container')
+            });
+            window.lastExportText = finalText;
+            window.lastExportFileName = `v${fromVer}-to-v${toVer}-guideline`;
+        }
+
+        function downloadExportText() {
+            if(!window.lastExportText) return;
+            const blob = new Blob([window.lastExportText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = window.lastExportFileName + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyExportText() {
+            if(!window.lastExportText) return;
+            navigator.clipboard.writeText(window.lastExportText).then(() => {
+                alert('Copied to clipboard successfully!');
+            });
+        }
+
+        function downloadExportPDF() {
+            const element = document.getElementById('export-pdf-content');
+            if(!element) return;
+            const opt = {
+                margin:       10,
+                filename:     window.lastExportFileName + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
 
         // Initialize App
         renderApp();
