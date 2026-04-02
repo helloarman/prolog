@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prolog.io - System Release Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar to match the slick design */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900 font-sans antialiased flex min-h-screen overflow-hidden">
+
+    <!-- Side Navigation -->
+    <nav class="w-64 bg-[#0F172A] border-r border-slate-800 hidden md:flex flex-col h-screen sticky top-0 text-slate-300">
+        <div class="p-5 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
+                <i data-lucide="layers" class="w-[18px] h-[18px] text-white"></i>
+            </div>
+            <span class="font-bold text-white tracking-tight text-lg">PROLOG.IO</span>
+        </div>
+
+        <div class="flex-1 py-6 overflow-y-auto">
+            <div class="px-5 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Navigation</div>
+            <button id="nav-dashboard" class="w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-colors bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-500">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+            </button>
+
+            <div class="px-5 mt-8 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Projects</div>
+            <div id="sidebar-projects" class="space-y-1">
+                <!-- Projects populated here -->
+            </div>
+            <div class="px-2">
+                <button onclick="openModal('project-modal')" class="w-full flex items-center gap-2 px-3 py-2 mt-2 text-xs text-slate-500 hover:text-indigo-400 transition-colors">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> New Deployment
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Panel -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Header Strip -->
+        <header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+            <div class="flex items-center gap-2 text-xs font-medium text-slate-500">
+                <span>Core System</span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                <span id="header-title" class="text-slate-800">Dashboard</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                    <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                    SYSTEM OPERATIONAL
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-4 md:p-8">
+            <!-- Rendered dynamically -->
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Add Project Modal -->
+    <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+        <div class="bg-white w-full max-w-md shadow-2xl overflow-hidden border border-slate-200">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Repository Provisioning</span>
+                <button onclick="closeModal('project-modal')" class="text-slate-400 hover:text-slate-600 transition-colors"><i data-lucide="x" class="w-4.5 h-4.5"></i></button>
+            </div>
+            <form id="project-form" class="p-6 space-y-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Repository Name</label>
+                    <input id="proj-name" required class="w-full px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:border-indigo-500 text-sm" placeholder="System Service Name">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Base Version</label>
+                    <input id="proj-version" required value="1.0.0" class="w-full px-3 py-2 bg-white border border-slate-200 font-mono text-sm" placeholder="1.0.0">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Description</label>
+                    <textarea id="proj-desc" class="w-full px-3 py-2 bg-white border border-slate-200 min-h-[80px] text-sm" placeholder="Infrastructure overview..."></textarea>
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm tracking-tight transition-all mt-4">Confirm Infrastructure</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Log Modal -->
+    <div id="log-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+        <div class="bg-white w-full max-w-md shadow-2xl border border-slate-200">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Commit Event Registry</span>
+                <button onclick="closeModal('log-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4.5 h-4.5"></i></button>
+            </div>
+            <form id="log-form" class="p-6 space-y-6">
+                <div id="log-type-selector" class="grid grid-cols-2 gap-2">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Describe Event</label>
+                    <textarea id="log-desc" required class="w-full px-3 py-2 bg-white border border-slate-200 min-h-[100px] text-sm" placeholder="Log technical details..."></textarea>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#0F172A] hover:bg-slate-800 text-white font-bold text-sm tracking-tight transition-all">Submit Commit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Release Modal -->
+    <div id="release-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+        <div class="bg-white w-full max-w-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[95vh]">
+            <div class="p-6 border-b border-slate-800 bg-[#0F172A] text-white flex justify-between items-center">
+                <div>
+                    <h3 id="release-modal-title" class="font-bold text-lg tracking-tight">System Release Preparation</h3>
+                    <p id="release-modal-version" class="text-slate-500 text-[10px] font-mono tracking-wider">PREPARING_BUMP: </p>
+                </div>
+                <button onclick="closeModal('release-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            
+            <form id="release-form" class="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50 hide-scroll">
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Upgrade Protocol Steps</h4>
+                        <button type="button" onclick="addProtocolStep()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase">+ Add Step</button>
+                    </div>
+                    
+                    <div id="release-steps-container" class="space-y-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 border border-slate-200 grid grid-cols-2 gap-8 shadow-sm">
+                    <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Release Objects</span>
+                        <p id="release-modal-objects-count" class="text-xl font-mono font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Version Target</span>
+                        <p id="release-modal-target-version" class="text-xl font-mono font-bold text-indigo-600">v1.0.0</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal('release-modal')" class="flex-1 py-3 bg-white text-xs font-bold text-slate-500 hover:bg-slate-50 border border-slate-200 transition-all uppercase tracking-widest">Abort</button>
+                    <button id="release-submit-btn" type="submit" class="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm tracking-widest transition-all shadow-lg shadow-indigo-100 uppercase">Authorize Deployment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const LOG_TYPES = {
+            BREAKING: { label: 'Breaking', color: 'text-rose-600', bgColor: 'bg-rose-50', icon: 'alert-triangle', semver: 'major' },
+            FEATURE: { label: 'Feature', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: 'rocket', semver: 'minor' },
+            BUGFIX: { label: 'Bug Fix', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: 'alert-circle', semver: 'patch' },
+            UPDATE: { label: 'Update', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: 'trending-up', semver: 'patch' },
+            IMPROVEMENT: { label: 'Improvement', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: 'wrench', semver: 'patch' },
+        };
+
+        const PROTOCOL_TYPES = {
+            PLAIN_TEXT: 'Plain Text',
+            REPLACE_FILE: 'Replace File',
+            REPLACE_CODE: 'Replace Code',
+            ADD_FILE: 'Add File'
+        };
+
+        const getEmptyProtocolStep = () => ({
+            id: crypto.randomUUID(),
+            type: 'PLAIN_TEXT',
+            content: '',
+            fromPath: '',
+            toPath: '',
+            onPath: '',
+            targetLocation: '',
+            code: ''
+        });
+
+        // State
+        let projects = JSON.parse(localStorage.getItem('release_tracker_projects')) || [];
+        let activeProjectId = null;
+        let newLogType = 'FEATURE';
+        let newReleaseGuidelines = [getEmptyProtocolStep()];
+        let draggedStepIdx = null;
+        let editingReleaseId = null;
+
+        // Helpers
+        function saveState() {
+            localStorage.setItem('release_tracker_projects', JSON.stringify(projects));
+            renderApp();
+        }
+
+        function calculateNextVersion(currentVersion, pendingLogs) {
+            if (!pendingLogs || pendingLogs.length === 0) return currentVersion;
+            let [major, minor, patch] = currentVersion.split('.').map(Number);
+            
+            const majorIncrements = pendingLogs.filter(l => LOG_TYPES[l.type].semver === 'major').length;
+            const minorIncrements = pendingLogs.filter(l => LOG_TYPES[l.type].semver === 'minor').length;
+            const patchIncrements = pendingLogs.filter(l => LOG_TYPES[l.type].semver === 'patch').length;
+
+            if (majorIncrements > 0) {
+                major += majorIncrements;
+                minor = minorIncrements;
+                patch = patchIncrements;
+            } else if (minorIncrements > 0) {
+                minor += minorIncrements;
+                patch = patchIncrements;
+            } else {
+                patch += patchIncrements;
+            }
+            return `${major}.${minor}.${patch}`;
+        }
+
+        // View Modifiers
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            if(id === 'log-modal') renderLogTypeSelector();
+            if(id === 'release-modal') setupReleaseModal();
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            if(id === 'release-modal') {
+                newReleaseGuidelines = [getEmptyProtocolStep()];
+                editingReleaseId = null;
+            }
+        }
+
+        // Core Renderers
+        function renderApp() {
+            renderSidebar();
+            
+            const activeProject = projects.find(p => p.id === activeProjectId);
+            document.getElementById('header-title').innerText = activeProject ? activeProject.name : 'Dashboard';
+            
+            if (!activeProjectId) {
+                renderDashboard();
+            } else {
+                renderActiveProject(activeProject);
+            }
+            lucide.createIcons();
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('sidebar-projects');
+            container.innerHTML = '';
+            
+            projects.forEach(p => {
+                const isActive = activeProjectId === p.id;
+                const activeClasses = isActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/50 hover:text-white';
+                const dotClass = isActive ? 'bg-indigo-400' : 'bg-slate-600 group-hover:bg-indigo-400';
+                
+                container.innerHTML += `
+                    <div class="group relative px-2">
+                        <button onclick="setActiveProject('${p.id}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded text-sm transition-all ${activeClasses}">
+                            <div class="flex items-center gap-2 truncate">
+                                <div class="w-1.5 h-1.5 rounded-full ${dotClass}"></div>
+                                <span class="truncate">${p.name}</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-slate-500">v${p.currentVersion}</span>
+                        </button>
+                    </div>
+                `;
+            });
+
+            // Update dashboard button style
+            const dashBtn = document.getElementById('nav-dashboard');
+            if (!activeProjectId) {
+                dashBtn.className = 'w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-colors bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-500';
+            } else {
+                dashBtn.className = 'w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-colors text-slate-300 hover:bg-slate-800 hover:text-white';
+            }
+        }
+
+        function setActiveProject(id) {
+            activeProjectId = id;
+            renderApp();
+        }
+        
+        document.getElementById('nav-dashboard').addEventListener('click', () => setActiveProject(null));
+
+        function renderDashboard() {
+            const content = document.getElementById('main-content');
+            
+            // Calculate metrics
+            const totalProjects = projects.length;
+            const totalReleases = projects.reduce((acc, p) => acc + p.releases.length, 0);
+            const pendingCommits = projects.reduce((acc, p) => acc + p.logs.filter(l => !l.isReleased).length, 0);
+
+            // KPI Cards HTML
+            const kpiHtml = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Repositories</span>
+                        <span class="text-2xl font-mono font-bold text-slate-800">${totalProjects}</span>
+                    </div>
+                    <div class="bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Deployments</span>
+                        <span class="text-2xl font-mono font-bold text-indigo-600">${totalReleases}</span>
+                    </div>
+                    <div class="bg-white p-5 border border-slate-200 shadow-sm flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Commits</span>
+                        <span class="text-2xl font-mono font-bold text-orange-500">${pendingCommits}</span>
+                    </div>
+                    <div class="bg-[#0F172A] p-5 border border-slate-800 shadow-sm flex flex-col text-white">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">System Status</span>
+                        <span class="text-2xl font-mono font-bold text-emerald-400 flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> Optimal
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            // Insights HTML
+            let insightsHtml = '';
+            if (projects.length === 0) {
+                insightsHtml = `
+                    <div class="flex gap-3 items-start p-4 bg-slate-50 border border-slate-200 text-sm">
+                        <i data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"></i>
+                        <div>
+                            <p class="font-bold text-slate-700">No repositories detected</p>
+                            <p class="text-slate-500 text-xs mt-1">Provision your first repository to start tracking deployments and generating insights.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const projectsWithPending = projects.filter(p => p.logs.some(l => !l.isReleased));
+                if (projectsWithPending.length > 0) {
+                    insightsHtml += `
+                        <div class="flex gap-3 items-start p-4 bg-orange-50 border border-orange-100 text-sm mb-3">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-orange-500 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-orange-800">Pending Deployments</p>
+                                <p class="text-orange-600 text-xs mt-1">You have ${projectsWithPending.length} project(s) with unreleased commits. Consider preparing a new release manifest.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const projectsNeedingUpdate = projects.filter(p => p.releases.length === 0 && p.logs.length === 0);
+                if (projectsNeedingUpdate.length > 0) {
+                    insightsHtml += `
+                        <div class="flex gap-3 items-start p-4 bg-slate-50 border border-slate-200 text-sm mb-3">
+                            <i data-lucide="activity" class="w-4 h-4 text-slate-500 mt-0.5 shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-slate-700">Dormant Repositories</p>
+                                <p class="text-slate-500 text-xs mt-1">${projectsNeedingUpdate.length} repository(s) have no activity. Ensure continuous integration is active.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                insightsHtml += `
+                    <div class="flex gap-3 items-start p-4 bg-indigo-50 border border-indigo-100 text-sm mb-3">
+                        <i data-lucide="lightbulb" class="w-4 h-4 text-indigo-500 mt-0.5 shrink-0"></i>
+                        <div>
+                            <p class="font-bold text-indigo-800">Routine Maintenance</p>
+                            <p class="text-indigo-600 text-xs mt-1">System health is optimal. Next recommended global dependency audit is scheduled in 14 days.</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let cardsHtml = projects.map(p => `
+                <div class="bg-white border border-slate-200 hover:border-indigo-300 transition-all cursor-pointer flex flex-col group shadow-[0_1px_2px_rgba(0,0,0,0.05)]" onclick="setActiveProject('${p.id}')">
+                    <div class="p-5 flex-1">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition-colors">${p.name}</h3>
+                            <span class="font-mono text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">v${p.currentVersion}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed h-8 mb-4">${p.description || 'No system description provided.'}</p>
+                        <div class="grid grid-cols-2 gap-4 py-3 border-t border-slate-50">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Status</span>
+                                <span class="text-xs font-bold text-emerald-600">Stable</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Releases</span>
+                                <span class="text-xs font-bold text-slate-700">${p.releases.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 px-5 py-3 border-t border-slate-200 flex justify-between items-center group-hover:bg-indigo-50 transition-colors">
+                        <span class="text-[10px] font-bold text-slate-400 group-hover:text-indigo-400 uppercase tracking-wider">Access Registry</span>
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400"></i>
+                    </div>
+                </div>
+            `).join('');
+
+            content.innerHTML = `
+                <div class="max-w-7xl mx-auto space-y-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">System Infrastructure Overview</h2>
+                        <p class="text-slate-500 text-sm">Deployment metrics across active software repositories.</p>
+                    </div>
+                    
+                    ${kpiHtml}
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Repositories</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                ${cardsHtml}
+                                <button onclick="openModal('project-modal')" class="border border-dashed border-slate-300 rounded hover:border-indigo-400 hover:bg-indigo-50/30 flex flex-col items-center justify-center p-8 transition-all group min-h-[200px]">
+                                    <i data-lucide="plus-circle" class="w-6 h-6 text-slate-300 group-hover:text-indigo-500 mb-2"></i>
+                                    <span class="text-sm font-bold text-slate-400 group-hover:text-indigo-600">Provision New Repository</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="lg:col-span-1 space-y-6">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">System Insights</h3>
+                            </div>
+                            <div>
+                                ${insightsHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderActiveProject(project) {
+            const pendingLogs = project.logs.filter(l => !l.isReleased);
+            const nextVersion = calculateNextVersion(project.currentVersion, pendingLogs);
+            const content = document.getElementById('main-content');
+            
+            // Staging Queue
+            let stagingHtml = '';
+            if (pendingLogs.length === 0) {
+                stagingHtml = `<div class="border border-dashed border-slate-200 rounded p-12 text-center"><p class="text-slate-400 text-sm font-medium">Staging is empty. Use 'Commit Log' to add changes.</p></div>`;
+            } else {
+                stagingHtml = pendingLogs.map(log => {
+                    const conf = LOG_TYPES[log.type];
+                    return `
+                        <div class="bg-white border border-slate-200 p-4 flex gap-4 hover:border-slate-300 transition-colors">
+                            <div class="mt-1 p-1.5 rounded h-fit ${conf.bgColor} ${conf.color}">
+                                <i data-lucide="${conf.icon}" class="w-4 h-4"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider ${conf.color}">${conf.label}</span>
+                                    <span class="text-[10px] font-mono text-slate-400">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <p class="text-sm text-slate-700 font-medium">${log.description}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Deployment Logs
+            let releasesHtml = project.releases.map(release => `
+                <div class="border border-slate-200 bg-white shadow-sm">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <div class="flex items-center gap-4">
+                            <span class="font-mono font-bold text-slate-900">v${release.version}</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(release.releasedAt).toLocaleDateString()}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="editRelease('${release.id}')" class="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase px-2 py-1 rounded hover:bg-indigo-50 border border-transparent hover:border-indigo-100">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Edit
+                            </button>
+                            <div class="flex items-center gap-2 text-[10px] font-bold text-emerald-600">
+                                <i data-lucide="check-circle-2" class="w-3 h-3"></i> DEPLOYED
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Manifest</p>
+                            <div class="space-y-2">
+                                ${release.logs.map(logId => {
+                                    const log = project.logs.find(l => l.id === logId);
+                                    if (!log) return '';
+                                    return `
+                                        <div class="flex items-start gap-3 group">
+                                            <div class="mt-1 w-1.5 h-1.5 rounded-full ${LOG_TYPES[log.type].color.replace('text-', 'bg-')}"></div>
+                                            <p class="text-sm text-slate-600 font-medium">${log.description}</p>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        ${release.guidelines.length > 0 ? `
+                        <div class="pt-4 border-t border-slate-50">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Upgrade Protocol</p>
+                            <div class="space-y-2">
+                                ${release.guidelines.map((step, i) => renderProtocolStepHtml(step, i)).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Distribution Matrix
+            let distMatrixHtml = Object.entries(LOG_TYPES).map(([key, conf]) => {
+                const count = project.logs.filter(l => l.type === key).length;
+                const total = project.logs.length || 1;
+                return `
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-[11px] font-bold text-slate-600">
+                            <span class="flex items-center gap-1.5">
+                                <div class="w-2 h-2 rounded-sm ${conf.color.replace('text-', 'bg-')}"></div>
+                                ${conf.label}
+                            </span>
+                            <span>${count}</span>
+                        </div>
+                        <div class="h-1 bg-slate-50 overflow-hidden">
+                            <div class="h-full ${conf.color.replace('text-', 'bg-')}" style="width: ${(count / total) * 100}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const fillWidth = Math.min(100, (pendingLogs.length / 12) * 100);
+
+            content.innerHTML = `
+                <div class="max-w-6xl mx-auto space-y-8">
+                    <!-- Project Top Panel -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-200 pb-8">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-3">
+                                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">${project.name}</h2>
+                                <span class="bg-slate-100 border border-slate-200 text-slate-600 px-2 py-0.5 rounded font-mono text-[11px]">VERSION_ACTIVE: ${project.currentVersion}</span>
+                            </div>
+                            <p class="text-slate-500 text-sm max-w-2xl">${project.description}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openModal('log-modal')" class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold transition-all shadow-sm">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Commit Log
+                            </button>
+                            <button onclick="openModal('release-modal')" ${pendingLogs.length === 0 ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-all shadow-sm disabled:opacity-50 disabled:grayscale">
+                                <i data-lucide="rocket" class="w-4 h-4"></i> Deploy Release
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <!-- Deployment Area -->
+                        <div class="lg:col-span-8 space-y-8">
+                            <section>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Staging Queue
+                                    </h3>
+                                    <span class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-2 py-1 border border-indigo-100">
+                                        PENDING_RELEASE
+                                    </span>
+                                </div>
+                                <div class="space-y-2">
+                                    ${stagingHtml}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                    <i data-lucide="history" class="w-3.5 h-3.5"></i> Deployment Logs
+                                </h3>
+                                <div class="space-y-4">
+                                    ${releasesHtml}
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Sidebar Analytics -->
+                        <div class="lg:col-span-4 space-y-6">
+                            <div class="bg-[#0F172A] p-6 text-white shadow-xl rounded">
+                                <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+                                    <i data-lucide="activity" class="w-3.5 h-3.5"></i> Deployment Engine
+                                </h4>
+                                <div class="space-y-6">
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-tighter mb-1">Target Increment</span>
+                                        <span class="text-3xl font-mono font-bold text-white tracking-tight">${nextVersion}</span>
+                                    </div>
+                                    <div class="pt-4 border-t border-slate-800 space-y-3">
+                                        <div class="flex justify-between items-center text-xs">
+                                            <span class="text-slate-400">Queue Capacity</span>
+                                            <span class="font-bold">${pendingLogs.length} Objects</span>
+                                        </div>
+                                        <div class="h-1 bg-slate-800 rounded-full">
+                                            <div class="h-full bg-indigo-500 transition-all duration-700" style="width: ${fillWidth}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white border border-slate-200 p-6 shadow-sm">
+                                <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Distribution Matrix</h4>
+                                <div class="space-y-4">
+                                    ${distMatrixHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProtocolStepHtml(step, index) {
+            // Backwards compatibility for string steps
+            if (typeof step === 'string') {
+                return `
+                    <div class="flex gap-3 text-xs bg-slate-50 border border-slate-100 p-3 font-mono text-slate-700">
+                        <span class="text-indigo-500 font-bold">${String(index+1).padStart(2, '0')}</span>
+                        <span class="whitespace-pre-wrap">${step}</span>
+                    </div>
+                `;
+            }
+
+            let contentHtml = '';
+            if (step.type === 'PLAIN_TEXT') {
+                contentHtml = `<div class="whitespace-pre-wrap leading-relaxed">${step.content}</div>`;
+            } else if (step.type === 'ADD_FILE') {
+                const fromText = step.fromPath ? `<code class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-900 font-bold rounded">${step.fromPath}</code>` : `<strong class="text-indigo-500">system generated</strong>`;
+                contentHtml = `
+                    <div class="flex flex-col gap-2">
+                        <div class="text-sm text-slate-600">
+                            Add ${fromText} file into <code class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-900 font-bold rounded">${step.toPath}</code> path
+                        </div>
+                    </div>
+                `;
+            } else if (step.type === 'REPLACE_FILE') {
+                const fromText = step.fromPath ? `<code class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-900 font-bold rounded">${step.fromPath}</code>` : `<strong class="text-indigo-500">system generated</strong>`;
+                contentHtml = `
+                    <div class="flex flex-col gap-2">
+                        <div class="text-sm text-slate-600">
+                            Replace <code class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-900 font-bold rounded">${step.toPath}</code> file with ${fromText} file
+                        </div>
+                    </div>
+                `;
+            } else if (step.type === 'REPLACE_CODE') {
+                contentHtml = `
+                    <div class="flex flex-col gap-3 w-full">
+                        <div class="text-sm text-slate-600">
+                            Add this code at <span class="text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">${step.targetLocation}</span> on <code class="px-1.5 py-0.5 bg-white border border-slate-200 text-slate-900 font-bold rounded">${step.onPath}</code> file
+                        </div>
+                        <div class="relative rounded border border-slate-800 bg-[#0F172A] overflow-hidden">
+                            <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+                                <i data-lucide="code" class="w-3 h-3 text-slate-400"></i>
+                                <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Payload</span>
+                            </div>
+                            <pre class="p-3 text-[11px] text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">${step.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="flex gap-3 text-xs bg-slate-50 border border-slate-200 p-3 font-mono text-slate-700">
+                    <span class="text-indigo-500 font-bold shrink-0">${String(index+1).padStart(2, '0')}</span>
+                    <div class="flex-1 space-y-2 overflow-hidden">
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Actions
+        document.getElementById('project-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const project = {
+                id: crypto.randomUUID(),
+                name: document.getElementById('proj-name').value,
+                version: document.getElementById('proj-version').value,
+                description: document.getElementById('proj-desc').value,
+                currentVersion: document.getElementById('proj-version').value,
+                logs: [],
+                releases: [],
+                createdAt: new Date().toISOString()
+            };
+            projects.push(project);
+            closeModal('project-modal');
+            e.target.reset();
+            saveState();
+        });
+
+        // Add Log Actions
+        function renderLogTypeSelector() {
+            const container = document.getElementById('log-type-selector');
+            container.innerHTML = Object.entries(LOG_TYPES).map(([key, config]) => {
+                const isActive = newLogType === key;
+                const activeClass = isActive ? `border-indigo-500 bg-indigo-50/50 ${config.color} ring-1 ring-indigo-500` : 'border-slate-100 bg-slate-50 text-slate-500';
+                return `
+                    <button type="button" onclick="setLogType('${key}')" class="flex items-center gap-2 p-2.5 border transition-all text-left ${activeClass}">
+                        <i data-lucide="${config.icon}" class="w-3.5 h-3.5"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-wider">${config.label}</span>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function setLogType(type) {
+            newLogType = type;
+            renderLogTypeSelector();
+        }
+
+        document.getElementById('log-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!activeProjectId) return;
+            
+            const log = {
+                id: crypto.randomUUID(),
+                type: newLogType,
+                description: document.getElementById('log-desc').value,
+                timestamp: new Date().toISOString(),
+                isReleased: false
+            };
+            
+            const pIdx = projects.findIndex(p => p.id === activeProjectId);
+            projects[pIdx].logs.unshift(log);
+            
+            closeModal('log-modal');
+            e.target.reset();
+            newLogType = 'FEATURE';
+            saveState();
+        });
+
+        // Release Modal Actions
+        function editRelease(releaseId) {
+            const project = projects.find(p => p.id === activeProjectId);
+            const release = project.releases.find(r => r.id === releaseId);
+            if (!release) return;
+
+            editingReleaseId = releaseId;
+            newReleaseGuidelines = release.guidelines.length > 0 ? JSON.parse(JSON.stringify(release.guidelines)) : [getEmptyProtocolStep()];
+            
+            openModal('release-modal');
+        }
+
+        function setupReleaseModal() {
+            const project = projects.find(p => p.id === activeProjectId);
+            if (!project) return;
+            
+            if (editingReleaseId) {
+                const release = project.releases.find(r => r.id === editingReleaseId);
+                document.getElementById('release-modal-title').innerText = 'Edit Release Protocol';
+                document.getElementById('release-modal-version').innerText = `EDITING_VERSION: ${release.version}`;
+                document.getElementById('release-modal-objects-count').innerText = release.logs.length;
+                document.getElementById('release-modal-target-version').innerText = `v${release.version}`;
+                document.getElementById('release-submit-btn').innerText = 'Save Changes';
+            } else {
+                const pendingLogs = project.logs.filter(l => !l.isReleased);
+                const nextVersion = calculateNextVersion(project.currentVersion, pendingLogs);
+                
+                document.getElementById('release-modal-title').innerText = 'System Release Preparation';
+                document.getElementById('release-modal-version').innerText = `PREPARING_BUMP: ${nextVersion}`;
+                document.getElementById('release-modal-objects-count').innerText = pendingLogs.length;
+                document.getElementById('release-modal-target-version').innerText = `v${nextVersion}`;
+                document.getElementById('release-submit-btn').innerText = 'Authorize Deployment';
+            }
+            
+            renderReleaseStepsForm();
+        }
+
+        function renderReleaseStepsForm() {
+            const container = document.getElementById('release-steps-container');
+            container.innerHTML = newReleaseGuidelines.map((step, idx) => {
+                const isDragged = draggedStepIdx === idx;
+                
+                let fieldsHtml = '';
+                if (step.type === 'PLAIN_TEXT') {
+                    fieldsHtml = `<textarea data-field="content" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm focus:border-indigo-500 outline-none min-h-[60px]" placeholder="Instruction for deployment engineer...">${step.content}</textarea>`;
+                } else if (step.type === 'REPLACE_FILE') {
+                    fieldsHtml = `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">From Path (Optional)</label><input data-field="fromPath" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., config/prod.template.json" value="${step.fromPath}"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">To Path</label><input data-field="toPath" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., config/prod.json" value="${step.toPath}"></div>
+                        </div>`;
+                } else if (step.type === 'REPLACE_CODE') {
+                    fieldsHtml = `
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target File</label><input data-field="onPath" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., src/server.js" value="${step.onPath}"></div>
+                                <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Injection Point</label><input data-field="targetLocation" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., Line 45 / After init()" value="${step.targetLocation}"></div>
+                            </div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payload Code</label><textarea data-field="code" class="w-full px-3 py-3 bg-[#0F172A] border border-slate-800 text-slate-300 text-xs font-mono focus:border-indigo-500 outline-none min-h-[100px]" placeholder="const active = true;">${step.code}</textarea></div>
+                        </div>`;
+                } else if (step.type === 'ADD_FILE') {
+                    fieldsHtml = `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Source Path (Optional)</label><input data-field="fromPath" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., repo/templates/env.example" value="${step.fromPath}"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Destination Path</label><input data-field="toPath" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 text-sm font-mono focus:border-indigo-500 outline-none" placeholder="e.g., .env" value="${step.toPath}"></div>
+                        </div>`;
+                }
+
+                return `
+                    <div data-step-index="${idx}" draggable="true" class="bg-white border ${isDragged ? 'border-indigo-500 shadow-md opacity-50 scale-[0.99]' : 'border-slate-200'} p-4 space-y-4 relative group shadow-sm transition-all step-item">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-2">
+                            <div class="flex items-center gap-3">
+                                <div class="cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 drag-handle" title="Drag to reorder">
+                                    <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                                </div>
+                                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded tracking-widest">
+                                    STEP ${String(idx + 1).padStart(2, '0')}
+                                </span>
+                                <select data-field="type" class="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 px-2 py-1.5 focus:outline-none focus:border-indigo-500 uppercase tracking-wide cursor-pointer">
+                                    ${Object.entries(PROTOCOL_TYPES).map(([k, v]) => `<option value="${k}" ${step.type === k ? 'selected' : ''}>${v}</option>`).join('')}
+                                </select>
+                            </div>
+                            <button type="button" onclick="removeProtocolStep(${idx})" class="text-slate-300 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                        <div>${fieldsHtml}</div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+            bindStepEvents();
+        }
+
+        function bindStepEvents() {
+            const container = document.getElementById('release-steps-container');
+            
+            // Handle inputs safely without full re-render losing focus
+            container.querySelectorAll('input, textarea, select').forEach(el => {
+                el.addEventListener('change', (e) => {
+                    const idx = e.target.closest('[data-step-index]').dataset.stepIndex;
+                    const field = e.target.dataset.field;
+                    newReleaseGuidelines[idx][field] = e.target.value;
+                    
+                    if(field === 'type') renderReleaseStepsForm();
+                });
+                
+                if(el.tagName !== 'SELECT') {
+                    el.addEventListener('input', (e) => {
+                        const idx = e.target.closest('[data-step-index]').dataset.stepIndex;
+                        const field = e.target.dataset.field;
+                        newReleaseGuidelines[idx][field] = e.target.value;
+                    });
+                }
+            });
+
+            // Drag and Drop implementation
+            container.querySelectorAll('.step-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedStepIdx = parseInt(item.dataset.stepIndex);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => item.classList.add('opacity-50'), 0);
+                });
+                
+                item.addEventListener('dragover', (e) => e.preventDefault());
+                
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const targetIdx = parseInt(item.dataset.stepIndex);
+                    if (draggedStepIdx === null || draggedStepIdx === targetIdx) return;
+                    
+                    const draggedItem = newReleaseGuidelines.splice(draggedStepIdx, 1)[0];
+                    newReleaseGuidelines.splice(targetIdx, 0, draggedItem);
+                    draggedStepIdx = null;
+                    renderReleaseStepsForm();
+                });
+                
+                item.addEventListener('dragend', () => {
+                    draggedStepIdx = null;
+                    item.classList.remove('opacity-50');
+                });
+            });
+        }
+
+        function addProtocolStep() {
+            newReleaseGuidelines.push(getEmptyProtocolStep());
+            renderReleaseStepsForm();
+        }
+
+        function removeProtocolStep(idx) {
+            newReleaseGuidelines.splice(idx, 1);
+            renderReleaseStepsForm();
+        }
+
+        document.getElementById('release-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const projectIdx = projects.findIndex(p => p.id === activeProjectId);
+            if (projectIdx === -1) return;
+            
+            const project = projects[projectIdx];
+            
+            const validGuidelines = newReleaseGuidelines.filter(g => {
+                if (g.type === 'PLAIN_TEXT') return g.content.trim() !== '';
+                if (g.type === 'REPLACE_FILE' || g.type === 'ADD_FILE') return g.toPath.trim() !== '';
+                if (g.type === 'REPLACE_CODE') return g.onPath.trim() !== '' && g.code.trim() !== '';
+                return false;
+            });
+
+            if (editingReleaseId) {
+                // Update existing release
+                const releaseIdx = project.releases.findIndex(r => r.id === editingReleaseId);
+                if (releaseIdx !== -1) {
+                    project.releases[releaseIdx].guidelines = validGuidelines;
+                }
+            } else {
+                // Create new release
+                const pendingLogs = project.logs.filter(l => !l.isReleased);
+                if (pendingLogs.length === 0) return;
+
+                const nextVersion = calculateNextVersion(project.currentVersion, pendingLogs);
+                
+                const release = {
+                    id: crypto.randomUUID(),
+                    version: nextVersion,
+                    releasedAt: new Date().toISOString(),
+                    guidelines: validGuidelines,
+                    logs: pendingLogs.map(l => l.id)
+                };
+
+                project.currentVersion = nextVersion;
+                project.releases.unshift(release);
+                project.logs = project.logs.map(l => ({ ...l, isReleased: true }));
+            }
+            
+            closeModal('release-modal');
+            saveState();
+        });
+
+        // Initialize App
+        renderApp();
+    </script>
+</body>
+</html>
