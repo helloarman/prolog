@@ -15,19 +15,6 @@ ProLog is an advanced, beautifully styled client-side release tracking and chang
 *   **Local-First & Import/Export Engine:** Everything runs safely in your browser via LocalStorage. You can export complete project workflows as JSON backups and import them intelligently across different devices.
 *   **Dashboard Insights:** Track pending commits, current deployment metrics, and distribution matrix summaries directly from the dashboard.
 
-## 💻 Tech Stack
-- Frontend Dashboard: Vanilla HTML5 / Javascript
-- Framework: Tailwind CSS via CDN 
-- Assets: Lucide Icons, jsPDF, html2canvas
-
-## 🛠 Usage
-This app is entirely client-side. To run it locally:
-1. Clone the repository.
-   ```bash
-   git clone https://github.com/helloarman/prolog.git
-   ```
-2. Open `index.html` in your favorite modern browser.
-3. Provision your first repository from the "Active Projects" sidebar!
 
 ## 📜 Exporting & Importing Workloads
 - At any given time, you can secure your active project repository by clicking **Export Backup File** to securely download it as a JSON payload.
