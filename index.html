@@ -6,7 +6,8 @@
     <title>Prolog.io - System Release Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* Custom scrollbar to match the slick design */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -189,16 +190,33 @@
                 </div>
             </div>
 
-            <div class="p-4 border-t border-slate-200 bg-white flex gap-3 justify-end items-center">
-                <button onclick="downloadExportText()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 shadow-sm uppercase">
-                    <i data-lucide="file-text" class="w-4 h-4"></i> Guideline.txt
-                </button>
-                <button onclick="downloadExportPDF()" class="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all shadow-sm uppercase">
-                    <i data-lucide="file-type-2" class="w-4 h-4"></i> Download PDF
-                </button>
-                <button onclick="copyExportText()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm uppercase">
+            <div class="p-4 border-t border-slate-200 bg-white flex gap-3 justify-end items-center relative z-20">
+                <button onclick="copyExportText()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 shadow-sm uppercase">
                     <i data-lucide="copy" class="w-4 h-4"></i> Copy Text
                 </button>
+                <div class="relative inline-block text-left relative-dropdown">
+                    <button onclick="toggleDropdown('download-dropdown')" type="button" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm uppercase group">
+                        <i data-lucide="download" class="w-4 h-4"></i> Download Options
+                        <i data-lucide="chevron-down" class="w-4 h-4 ml-1 opacity-70 group-hover:opacity-100 transition-transform duration-200" id="download-dropdown-icon"></i>
+                    </button>
+                    
+                    <div id="download-dropdown" class="origin-bottom-right absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-2xl bg-white border border-slate-200 focus:outline-none hidden z-50 overflow-hidden">
+                        <div class="py-1 flex flex-col" role="menu" aria-orientation="vertical">
+                            <button onclick="downloadExportText(); closeDropdown('download-dropdown')" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors border-b border-slate-50 font-bold uppercase tracking-widest text-[10px]">
+                                <i data-lucide="file-text" class="w-4 h-4"></i> Download As TXT
+                            </button>
+                            <button onclick="downloadExportPDFCopyable(); closeDropdown('download-dropdown')" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors border-b border-slate-50 font-bold uppercase tracking-widest text-[10px]">
+                                <i data-lucide="file-type-2" class="w-4 h-4 text-rose-500"></i> Download As PDF <span class="tracking-normal ml-auto text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">TEXT</span>
+                            </button>
+                            <button onclick="downloadExportImage(); closeDropdown('download-dropdown')" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors border-b border-slate-50 font-bold uppercase tracking-widest text-[10px]">
+                                <i data-lucide="image" class="w-4 h-4 text-emerald-500"></i> Download As Image
+                            </button>
+                            <button onclick="downloadProfessionalImage(); closeDropdown('download-dropdown')" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors font-bold uppercase tracking-widest text-[10px] group">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-500 group-hover:text-amber-500 transition-colors"></i> Download Changelog Image <span class="tracking-normal ml-auto text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">PRO</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1176,18 +1194,224 @@
             });
         }
 
-        function downloadExportPDF() {
+        function downloadExportPDFCopyable() {
+            if(!window.lastExportText) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            });
+            
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            const title = "Change Log & Upgrade Guideline";
+            doc.text(title, 20, 20);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            
+            const lines = doc.splitTextToSize(window.lastExportText, 170); // 210mm width - 40mm margins
+            let cursorY = 35;
+            
+            for(let i=0; i<lines.length; i++) {
+                if(cursorY > 280) {
+                    doc.addPage();
+                    cursorY = 20;
+                }
+                
+                if (lines[i].startsWith('====') || lines[i].startsWith('----')) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(150, 150, 150);
+                } else if (lines[i].includes('MERGED CHANGE LOG:') || lines[i].includes('UPGRADE PROTOCOL STEPS:')) {
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0, 0, 0);
+                    cursorY += 4;
+                } else if (lines[i].startsWith('[')) {
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(79, 70, 229);
+                    cursorY += 2;
+                } else {
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(50, 50, 50);
+                }
+                
+                doc.text(lines[i], 20, cursorY);
+                cursorY += 6;
+            }
+            
+            doc.save(window.lastExportFileName + '.pdf');
+        }
+
+        async function captureElementAsImage(element, filename, customStyle = null) {
+            const clone = element.cloneNode(true);
+            document.body.appendChild(clone);
+            
+            clone.style.position = 'absolute';
+            clone.style.top = '-9999px';
+            clone.style.left = '-9999px';
+            if(customStyle) {
+                Object.assign(clone.style, customStyle);
+            }
+            
+            lucide.createIcons({ root: clone });
+            
+            try {
+                // Short wait to ensure SVG icons render and styles propagate
+                await new Promise(r => setTimeout(r, 100));
+                const canvas = await html2canvas(clone, { 
+                    scale: 2, 
+                    useCORS: true,
+                    backgroundColor: clone.style.backgroundColor || null,
+                    logging: false
+                });
+                
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch(e) {
+                console.error('Error generating image', e);
+            } finally {
+                document.body.removeChild(clone);
+            }
+        }
+
+        async function downloadExportImage() {
             const element = document.getElementById('export-pdf-content');
             if(!element) return;
-            const opt = {
-                margin:       10,
-                filename:     window.lastExportFileName + '.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().set(opt).from(element).save();
+            await captureElementAsImage(element, window.lastExportFileName + '.png', {
+                width: '800px',
+                padding: '40px',
+                background: '#ffffff',
+            });
         }
+
+        async function downloadProfessionalImage() {
+            const project = projects.find(p => p.id === activeProjectId);
+            if (!project) return;
+            
+            const fromVer = document.getElementById('export-from-version').value;
+            const toVer = document.getElementById('export-to-version').value;
+            
+            const sortedReleases = [...project.releases].sort((a,b) => a.releasedAt.localeCompare(b.releasedAt));
+            const allVersions = [project.version, ...sortedReleases.map(r => r.version)];
+            const fromIdx = allVersions.findIndex(v => v === fromVer);
+            const toIdx = allVersions.findIndex(v => v === toVer);
+            if (fromIdx >= toIdx) return;
+            
+            const targetReleases = sortedReleases.slice(fromIdx, toIdx);
+            let allLogs = [];
+            targetReleases.forEach(rel => {
+                rel.logs.forEach(logId => {
+                    const log = project.logs.find(l => l.id === logId);
+                    if(log) allLogs.push(log);
+                });
+            });
+
+            let featureLogs = allLogs.filter(l => l.type === 'FEATURE' || l.type === 'BREAKING');
+            let improvementLogs = allLogs.filter(l => l.type === 'IMPROVEMENT' || l.type === 'UPDATE');
+            let fixLogs = allLogs.filter(l => l.type === 'BUGFIX');
+            
+            const proContainer = document.createElement('div');
+            proContainer.innerHTML = `
+                <div style="width: 1080px; padding: 80px; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #020617 0%, #0F172A 100%); position: relative; overflow: hidden; color: white;">
+                    <div style="position:absolute; top: -100px; right: -100px; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.4) 0%, rgba(99,102,241,0) 70%); filter: blur(40px);"></div>
+                    <div style="position:absolute; bottom: -100px; left: -100px; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(236,72,153,0.3) 0%, rgba(236,72,153,0) 70%); filter: blur(50px);"></div>
+                    
+                    <div style="position: relative; z-index: 10; display: flex; flex-direction: column; height: 100%;">
+                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 60px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 40px;">
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 10px 24px; border-radius: 100px; font-family: monospace; font-size: 20px; font-weight: 700; color: #cbd5e1;">
+                                    v${fromVer} <span style="opacity:0.5; margin: 0 10px;">→</span> <span style="color: #818cf8;">v${toVer}</span>
+                                </div>
+                                <div style="margin-top: 12px; font-size: 14px; color: #64748b; font-weight: 600; text-transform: uppercase;">
+                                    Official Changelog
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: auto;">
+                            <div style="display: flex; flex-direction: column; gap: 30px;">
+                                ${featureLogs.length > 0 ? `
+                                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 32px; backdrop-filter: blur(10px);">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                                        <div style="background: rgba(99,102,241,0.2); padding: 8px; border-radius: 8px;">
+                                            <i data-lucide="rocket" style="width: 24px; height: 24px; color: #818cf8;"></i>
+                                        </div>
+                                        <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 1px;">New Features</h3>
+                                    </div>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #cbd5e1; font-size: 16px; line-height: 1.6; display:flex; flex-direction: column; gap: 16px;">
+                                        ${featureLogs.slice(0, 5).map(l => `<li style="padding-left: 10px;">${l.description}</li>`).join('')}
+                                        ${featureLogs.length > 5 ? `<li style="padding-left: 10px; color: #64748b; list-style-type: none;">+ ${featureLogs.length - 5} more features...</li>` : ''}
+                                    </ul>
+                                </div>` : ''}
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 30px;">
+                                ${improvementLogs.length > 0 ? `
+                                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 32px; backdrop-filter: blur(10px);">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                                        <div style="background: rgba(16,185,129,0.2); padding: 8px; border-radius: 8px;">
+                                            <i data-lucide="trending-up" style="width: 24px; height: 24px; color: #34d399;"></i>
+                                        </div>
+                                        <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 1px;">Improvements</h3>
+                                    </div>
+                                    <ul style="margin: 0; padding: 0 0 0 20px; color: #cbd5e1; font-size: 16px; line-height: 1.6; display:flex; flex-direction: column; gap: 16px;">
+                                        ${improvementLogs.slice(0, 4).map(l => `<li style="padding-left: 10px;">${l.description}</li>`).join('')}
+                                    </ul>
+                                </div>` : ''}
+                                
+                                ${fixLogs.length > 0 ? `
+                                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 32px; backdrop-filter: blur(10px);">
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                                        <div style="background: rgba(245,158,11,0.2); padding: 8px; border-radius: 8px;">
+                                            <i data-lucide="wrench" style="width: 24px; height: 24px; color: #fbbf24;"></i>
+                                        </div>
+                                        <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #e2e8f0; text-transform: uppercase; letter-spacing: 1px;">Bug Fixes</h3>
+                                    </div>
+                                    <p style="margin: 0; color: #cbd5e1; font-size: 16px; line-height: 1.6;">
+                                        Resolved <b>${fixLogs.length}</b> bugs & issues to improve stability and performance.
+                                    </p>
+                                </div>` : ''}
+                            </div>
+                        </div>
+                        
+
+                    </div>
+                </div>
+            `;
+            
+            await captureElementAsImage(proContainer.firstElementChild, window.lastExportFileName + '-changelog-pro.png');
+        }
+
+        function toggleDropdown(id) {
+            const el = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            if(el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                if(icon) icon.classList.add('rotate-180');
+            } else {
+                el.classList.add('hidden');
+                if(icon) icon.classList.remove('rotate-180');
+            }
+        }
+
+        function closeDropdown(id) {
+            document.getElementById(id).classList.add('hidden');
+            const icon = document.getElementById(id + '-icon');
+            if(icon) icon.classList.remove('rotate-180');
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('download-dropdown');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                const isClickInside = dropdown.contains(event.target) || event.target.closest('[onclick*="toggleDropdown"]');
+                if (!isClickInside) {
+                    closeDropdown('download-dropdown');
+                }
+            }
+        });
 
         // Initialize App
         renderApp();
